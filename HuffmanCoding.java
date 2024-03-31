@@ -8,6 +8,10 @@ record Node(String symbol, int weight, Node left, Node right) {
     public Node join(Node other) {
         return new Node(symbol + other.symbol, weight + other.weight, this, other);
     }
+
+    public boolean isLeaf() {
+        return left == null && right == null;
+    }
 }
 
 public class HuffmanCoding {
@@ -58,9 +62,12 @@ public class HuffmanCoding {
        Not, if we want to get the code for a symbol, all we have to do is to traverse the tree, appending 0 if we take a left branch or 1 if we take a right branch,
        along the way until we get to the desired leaf node.
      */
+
+    private Node root;
+
     public String encode(String raw) {
         Map<Character, Integer> frequency = getFrequency(raw);
-        Node root = getRoot(frequency);
+        root = getRoot(frequency);
         Map<Character, String> codes = new HashMap<>();
         getHuffmanCodes(root, "", codes);
         System.out.println(codes);
@@ -118,7 +125,31 @@ public class HuffmanCoding {
         return frequency;
     }
 
+    /*
+        To decode a string compressed with Huffman coding all we have to do is to traverse the tree we built to encode it in the first place.
+        To do that, we iterate over the text from left to right, and we'll use a variable to store the current node we reached in the Huffman tree.
+        Initially this variable points to root. If the current letter in the message is 0 then we go to the left child, if it's 1 then we go to the right child.
+        If the current is a leaf then we decoded the current symbol, we append it to the decoded message and reset the variable back to root.
+     */
     public String decode(String encoded) {
-        return "";
+        StringBuilder stringBuilder = new StringBuilder();
+
+        Node current = root;
+        for (int i = 0, len = encoded.length(); i < len; i++) {
+            if (encoded.charAt(i) == '0') {
+                current = current.left();
+            }
+            if (encoded.charAt(i) == '1') {
+                current = current.right();
+            }
+
+            // We've reached a leaf node therefore we must reset the current node
+            if (current.isLeaf()) {
+                stringBuilder.append(current.symbol());
+                current = root;
+            }
+        }
+
+        return stringBuilder.toString();
     }
 }
