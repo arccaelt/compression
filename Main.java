@@ -1,8 +1,11 @@
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
 
@@ -17,30 +20,93 @@ public class Main {
         HuffmanCoding huffmanCoding = new HuffmanCoding();
         String encoded = huffmanCoding.encode(text);
 
+        writeEncodedHuffmanData(encoded);
+        String readHuffman = readEncodedHuffman();
+
+
+        System.out.println(huffmanCoding.decode(readHuffman).substring(0, 100));
+
+
+        System.out.printf("Size after encoding with HuffmanCoding: %d chars, that's a %d chars diff\n", encoded.length(), encoded.length() - text.length());
+    }
+
+    private static void writeEncodedHuffmanData(String encoded) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream("DATA")) {
+            byte[] bytes = convertBytesToByteArray(mergeAllBitsIntoBytes(encoded));
+            fos.write(bytes, 0, bytes.length);
+        }
+    }
+
+    /*
+        Java doesn't have a method for writing individual bits to a file, so what we have to do is to
+        merge 8 bits into a byte and write that into the file. Remember, Huffman coding produces a list of codes made out of bits.
+
+        NOTE: If we'd try to write the data as it was outputted by Huffman coding then the resulting file would be larger than the initial one,
+        that's because for each bit we'll use 7 times more memory, because each bit would take a whole byte of memory.
+        So, writing:
+            01100
+        would end up writing the following bytes
+            00000000 00000001 00000001 00000000 00000000
+
+        That's why these bits will be merged into a byte, and only that byte will be written to the file, i.e:
+            01010101
+     */
+    private static List<Byte> mergeAllBitsIntoBytes(String encoded) {
         int i = 0;
-        int current = 0;
+        byte current = 0;
         int limit = encoded.length();
-        ArrayList<Byte> bits = new ArrayList<>();
+        int bitIndex = 0;
+        List<Byte> bits = new ArrayList<>();
 
         while (i < limit) {
-            int bit = Integer.valueOf(encoded.charAt(i++));
-            current = (current << 1) | bit;
-            if (i % 8 == 0) {
-                bits.add((byte) current);
+            int bit = encoded.charAt(i++) == '0' ? 0 : 1;
+            current |= (byte) (bit << bitIndex++);
+            if (bitIndex == 8) {
+                bits.add(current);
                 current = 0;
+                bitIndex = 0;
             }
         }
         if (current > 0) {
-            bits.add((byte) current);
+            bits.add(current);
         }
-        FileOutputStream fos = new FileOutputStream("ENCODED");
-        byte[] bytes = new byte[bits.size()];
-        for (int j = 0; j < bits.size(); j++) {
-            bytes[j] = bits.get(j);
-        }
-        fos.write(bytes, 0, bytes.length);
+        return bits;
+    }
 
-        System.out.printf("Size after encoding with HuffmanCoding: %d chars, that's a %d chars diff\n", encoded.length(), encoded.length() - text.length());
+    private static byte[] convertBytesToByteArray(List<Byte> byteList) {
+        byte[] bytes = new byte[byteList.size()];
+        for (int j = 0; j < byteList.size(); j++) {
+            bytes[j] = byteList.get(j);
+        }
+        return bytes;
+    }
+
+    /*
+        We have merged all the bits produced by huffman coding to bytes, so now we read all bytes, and for each one
+        we'll decompose it into individual bits using bitwise operators.
+     */
+    private static String readEncodedHuffman() throws IOException {
+        StringBuilder encodedBytes = new StringBuilder();
+        StringBuilder temp = new StringBuilder();
+        try (FileInputStream fin = new FileInputStream("data")) {
+            byte[] allBytes = fin.readAllBytes();
+            for (byte encodedByte : allBytes) {
+                for (int index = 0; index < 8; index++) {
+                    int currentBit = (encodedByte >> index) & 1;
+                    if (currentBit == 0) {
+                        temp.append("0");
+                    } else {
+                        temp.append("1");
+                    }
+                }
+                encodedBytes.append(temp);
+                temp.setLength(0);
+            }
+        }
+        if (!temp.isEmpty()) {
+            encodedBytes.append(temp);
+        }
+        return encodedBytes.toString();
     }
 
     private static void rleExperiment(String text) {
@@ -57,7 +123,7 @@ public class Main {
     }
 
     private static String getText() throws IOException {
-        return Files.readString(Paths.get("STUFF"));
+        return Files.readString(Paths.get("DATA"));
     }
 
 }
